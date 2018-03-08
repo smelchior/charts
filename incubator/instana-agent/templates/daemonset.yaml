@@ -1,0 +1,113 @@
+{{ if .Values.instana.agent.key -}}
+{{- if .Values.instana.zone -}}
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+{{ include "labels.standard" . | indent 4 }}
+spec:
+  template:
+    metadata:
+      labels:
+{{ include "labels.standard" . | indent 8 }}
+    spec:
+      serviceAccount: {{ template "instana-agent.serviceAccountName" . }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      hostIPC: true
+      hostNetwork: true
+      hostPID: true
+      containers:
+        - name: instana-agent
+          image: "{{ .Values.image.name }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: INSTANA_ENABLE_EXPERIMENTAL_KNOWLEDGE
+              value: "true"
+            - name: INSTANA_AGENT_LEADER_ELECTOR_PORT
+              value: "{{ .Values.leader_elector.port }}"
+            - name: INSTANA_ZONE
+              value: {{ .Values.instana.zone }}
+            - name: INSTANA_AGENT_ENDPOINT
+              value: {{ .Values.instana.agent.endpoint }}
+            - name: INSTANA_AGENT_ENDPOINT_PORT
+              value: "{{ .Values.instana.agent.port }}"
+            - name: INSTANA_AGENT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "fullname" . }}
+                  key: key
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: dev
+              mountPath: /dev
+            - name: run
+              mountPath: /var/run/docker.sock
+            - name: sys
+              mountPath: /sys
+            - name: log
+              mountPath: /var/log
+          livenessProbe:
+            exec:
+              command:
+                - echo
+                - noop
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - echo
+                - noop
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+{{ toYaml .Values.instana.resources | indent 12 }}
+        - name: leader-elector
+          image: "{{ .Values.leader_elector.image.name }}:{{ .Values.leader_elector.image.tag }}"
+          args: ["--election=instana", "--http=0.0.0.0:{{ .Values.leader_elector.port }}"]
+          resources:
+{{ toYaml .Values.leader_elector.resources | indent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.leader_elector.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.leader_elector.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+      volumes:
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: run
+          hostPath:
+            path: /var/run/docker.sock
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: log
+          hostPath:
+            path: /var/log
+{{- end -}}
+{{- end }}

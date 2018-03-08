@@ -1,0 +1,51 @@
+image:
+  name: instana/agent
+  tag: latest
+  pullPolicy: Always
+
+rbac:
+  create: true
+
+service:
+  create: true
+  type: ClusterIP
+
+## Node labels and tolerations for pod assignment
+## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+nodeSelector: {}
+tolerations:
+  - key: node-role.kubernetes.io/master
+    effect: NoSchedule
+
+instana:
+  #zone: your-cluster-name
+  agent:
+    #key: your-key
+    endpoint: saas-us-west-2.instana.io
+    port: 443
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 0.2
+      limits:
+        memory: 512Mi
+        cpu: 0.5
+
+leader_elector:
+  image: 
+    name: gcr.io/google-containers/leader-elector
+    tag: 0.5
+  port: 42655
+  resources:
+    requests:
+      cpu: 0.1
+      memory: 64Mi
+
+
+serviceAccount:
+  # Specifies whether a ServiceAccount should be created
+  create: true
+  # The name of the ServiceAccount to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name:

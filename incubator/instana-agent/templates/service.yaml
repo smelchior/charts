@@ -1,0 +1,17 @@
+{{- if .Values.service.create -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+{{ include "labels.standard" . | indent 4 }}
+spec:
+  type:  "{{ .Values.service.type }}"
+  ports:
+  - port: 42699
+    targetPort: 42699
+    protocol: TCP
+  selector:
+    app: {{ template "fullname" . }}
+    release: {{ .Release.Name }}
+{{- end -}}
